@@ -11,7 +11,6 @@ function satrt_pid()
     pm2_status
     if [[ $agent == "yes" ]]; then
         code=`curl --socks5 $proxy -I -m 500 -o /dev/null -s -w %{http_code}"\n" $url`
-        echo $code
         code_status
     elif [[ $agent == "no" ]] && [[ $mtp_addr == "no" ]]; then
         code=`curl -I -m 30 -o /dev/null -s -w %{http_code}"\n" $url`
@@ -25,21 +24,37 @@ function code_status {
     a="stopped"
     b="online"
     if [[ $code == "200" ]]; then
-        echo "ok"
-        if [[ $pm2status == *$a* ]];then
-            pm2 start tgbot
-        fi
+        code_status_ok
     else
-        echo "no"
-        if [[ $pm2status == *$b* ]];then
-            pm2 stop tgbot
-        fi
+        k=1
+        while [[ k -le 3 ]]; do
+            code=`curl --socks5 $proxy -I -m 500 -o /dev/null -s -w %{http_code}"\n" $url`
+            if [[ $code == "200" ]]; then
+                code_status_ok
+                return
+            else
+                let k++
+            fi
+        done
+        code_status_no
     fi
 }
 
 function pm2_status {
     pm2status=`pm2 describe tgbot`
 
+}
+
+function code_status_ok {
+    if [[ $pm2status == *$a* ]];then
+        pm2 start tgbot
+    fi
+}
+
+function code_status_no {
+    if [[ $pm2status == *$b* ]];then
+        pm2 stop tgbot
+    fi
 }
 
 function socks5_decide {
